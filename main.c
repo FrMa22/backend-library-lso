@@ -10,18 +10,9 @@
 #include <jansson.h>
 #include <pthread.h>
 
-#define PORT 8080
+#define PORT 8082
 
-/* void handle_options(int newSocket) {
-    const char *response = 
-        "HTTP/1.1 204 No Content\r\n"
-        "Access-Control-Allow-Origin: *\r\n"
-        "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
-        "Access-Control-Allow-Headers: Content-Type\r\n"
-        "Access-Control-Max-Age: 86400\r\n"
-        "\r\n";
-    send(newSocket, response, strlen(response), 0);
-} */
+
 void handle_options(int newSocket) {
     const char *response =
         "HTTP/1.1 204 No Content\r\n"
@@ -1245,75 +1236,6 @@ bool string_to_bool(const char *str) {
     return strcmp(str, "t") == 0;
 }
  
-/* void handle_login(int newSocket, char *buffer, PGconn *conn) {
-    printf("Entrato in handle_login\n");
-    char *body = strstr(buffer, "\r\n\r\n");
-    if (body) {
-        printf("Entrato in body\n");
-        body += 4; // Salta i 4 caratteri "\r\n\r\n"
- 
-        // Parsing del corpo della richiesta JSON
-        json_error_t error;
-        json_t *json_body = json_loads(body, 0, &error);
-        if (!json_body) {
-            printf("Errore nel parsing del corpo JSON: %s\n", error.text);
-            return;
-        }
- 
-        // Estrai l'email e la password
-        const char *email = json_string_value(json_object_get(json_body, "email"));
-        const char *password = json_string_value(json_object_get(json_body, "password"));
-        if (!email || !password) {
-            printf("Email o password mancanti nel corpo JSON\n");
-            json_decref(json_body);
-            return;
-        }
- 
-        printf("Email ricevuta: %s\n", email);
-        printf("Password ricevuta: %s\n", password);
- 
-        // Esegui la query al database e invia la risposta al client
-        char query[512];
-        snprintf(query, sizeof(query), "SELECT libraio FROM utenti WHERE email='%s' AND password='%s'", email, password);
- 
-        // Stampa la query con i valori correnti
-        printf("Query eseguita: %s\n", query);
- 
-        PGresult *res = PQexec(conn, query);
- 
-        if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
-            printf("Utente trovato\n");
- 
-            // Recupera il valore del flag libraio e convertilo in booleano
-            bool libraio = string_to_bool(PQgetvalue(res, 0, 0));
- 
-            // Costruisci la risposta HTTP
-            char response[256];
-            snprintf(response, sizeof(response),
-                     "HTTP/1.1 200 OK\r\n"
-                     "Content-Type: application/json\r\n"
-                     "Access-Control-Allow-Origin: *\r\n"
-                     "\r\n"
-                     "{\"status\":\"utente trovato\", \"libraio\":%s}",
-                     libraio ? "true" : "false");
-            send(newSocket, response, strlen(response), 0);
-        } else {
-            printf("Utente non trovato\n");
- 
-            // Costruisci la risposta HTTP
-            const char *response =
-                "HTTP/1.1 401 Unauthorized\r\n"
-                "Content-Type: application/json\r\n"
-                "Access-Control-Allow-Origin: *\r\n"
-                "\r\n"
-                "{\"status\":\"Credenziali non valide\"}";
-            send(newSocket, response, strlen(response), 0);
-        }
- 
-        PQclear(res);
-        json_decref(json_body);
-    }
-} */
  
 void handle_get_libri(int newSocket, PGconn *conn) {
     printf("Entrato in handle_get_libri\n");
@@ -1450,6 +1372,53 @@ void get_limite_libri(int newSocket, PGconn *conn) {
  
  
  
+
+void invia_messaggio(int newSocket, PGconn *conn,const char *titolo,const char *email,const char *data_scadenza) {
+    printf("Entrato in invia_messaggio\n");
+    // Recupero informazioni  libro dal database e invio al client
+   
+    // Stampa i valori estratti (opzionale, per debug)
+        printf("Titolo: %s\n", titolo);
+        printf("Email: %s\n", email);
+        printf("Scadenza: %s\n", data_scadenza);
+
+     // Costruisce il messaggio per la notifica
+    char messaggio[300];
+    snprintf(messaggio, sizeof(messaggio), "Attenzione! Il prestito per il libro %s è scaduto il giorno %s.Si prega di restituire il libro.", titolo, data_scadenza);
+    printf("Messaggio:%s\n",messaggio);
+    // Costruisce la query INSERT per inserire la notifica nella tabella "notifiche"
+    char query[512];
+    snprintf(query, sizeof(query), "INSERT INTO notifiche (messaggio, email_utente) VALUES ('%s', '%s')", messaggio, email);
+    printf("Query:%s\n",query);
+PGresult *res = PQexec(conn, query);
+
+if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+    // Inserimento riuscito
+    const char *response =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/json\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "\r\n"
+        "{ \"message\": \"Notifica inserita correttamente\" }";
+        printf("Notifica inviata al client\n");
+    send(newSocket, response, strlen(response), 0);
+} else {
+    // Errore nell'inserimento
+    const char *response =
+        "HTTP/1.1 500 Internal Server Error\r\n"
+        "Content-Type: application/json\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "\r\n"
+        "{ \"message\": \"Errore nell'inserimento della notifica\" }";
+    printf("Errore creazione notifica per il client\n");
+    send(newSocket, response, strlen(response), 0);
+}
+
+PQclear(res);
+}
+
+
+
 void update_limite_libri(int newSocket, PGconn *conn, char *buffer) {
     printf("Entrato in update_limite_libri\n");
  
@@ -1675,7 +1644,39 @@ void *handle_client(void *arg) {
         get_limite_libri(newSocket, conn);
     }else if (strncmp(buffer, "PUT /limite_libri", 17) == 0) {  // Gestisce la richiesta di aggiornamento del limite
         update_limite_libri(newSocket, conn, buffer);
-    } else if (strncmp(buffer, "GET /info", 9) == 0) {  // Gestisce la richiesta di recupero informazioni
+    }else if (strncmp(buffer, "POST /messaggio", 15) == 0) {  // Gestisce l'invio di un messaggio
+     // Cerca l'inizio del corpo della richiesta
+    char *body_start = strstr(buffer, "\r\n\r\n");
+    if (body_start) {
+        body_start += 4; // Avanza oltre la sequenza "\r\n\r\n"
+        // Parsing del corpo della richiesta JSON
+        json_error_t error;
+        json_t *json_body = json_loads(body_start, 0, &error);
+        if (!json_body) {
+            printf("Errore nel parsing del corpo JSON: %s\n", error.text);
+            return;
+        }
+
+        // Estrai i valori dal JSON
+        const char *titolo = json_string_value(json_object_get(json_body, "titolo"));
+        const char *email = json_string_value(json_object_get(json_body, "email"));
+        const char *scadenza = json_string_value(json_object_get(json_body, "scadenza"));
+
+        // Stampa i valori estratti (opzionale, per debug)
+        printf("Titolo: %s\n", titolo);
+        printf("Email: %s\n", email);
+        printf("Scadenza: %s\n", scadenza);
+
+        // Invia il messaggio
+        invia_messaggio(newSocket, conn, titolo, email, scadenza);
+
+        // Libera la memoria allocata per il JSON
+        json_decref(json_body);
+    } else {
+        // Errore nel trovare il corpo della richiesta
+        printf("Errore nel trovare il corpo della richiesta\n");
+    }
+     }else if (strncmp(buffer, "GET /info", 9) == 0) {  // Gestisce la richiesta di recupero informazioni
                 // Estrae il titolo dalla richiesta GET
         char *titolo_start = strstr(buffer, "titolo=");
         if (titolo_start) {
@@ -1699,19 +1700,7 @@ void *handle_client(void *arg) {
         
         
         
-    // char *titolo_start = strstr(buffer, "titolo=");
-    // if (titolo_start) {
-    //     titolo_start += strlen("titolo=");
-    //     char titolo[256];
-    //     sscanf(titolo_start, "%[^&]", titolo);
-
-
-        
-        
-    //     handle_get_info(newSocket, conn,titolo);
-    // }
-
-    //
+     
         
 
     close(newSocket);
@@ -1723,7 +1712,7 @@ void *handle_client(void *arg) {
 
 int main() {
     // Parametri di connessione al database
-    const char *DB_HOST = "database-progetto-lso.cdce2824inp7.eu-west-3.rds.amazonaws.com";
+    const char *DB_HOST = "lso.cn0yyy24sf56.eu-north-1.rds.amazonaws.com";
     const char *DB_PORT = "5432";
     const char *DB_NAME = "postgres";
     const char *DB_USER = "postgres";
