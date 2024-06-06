@@ -14,7 +14,6 @@
 
 // Dichiarazione del mutex come variabile globale
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_add_carrello = PTHREAD_MUTEX_INITIALIZER;
 
 
 void handle_get_books(int newSocket, PGconn *conn, char *buffer) {
@@ -285,7 +284,9 @@ void handle_search_books(int newSocket, char *buffer, PGconn *conn) {
 
 void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
     fprintf(stderr,"Entrato in handle_add_to_cart\n");
-
+    
+        
+        
     char *body = strstr(buffer, "\r\n\r\n");
     if (body) {
         body += 4; // Salta i 4 caratteri "\r\n\r\n"
@@ -310,9 +311,7 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
         printf("Email ricevuta: %s\n", email);
         printf("Titolo del libro ricevuto: %s\n", bookTitle);
 
-
-         // Entrata nella sezione critica
-        pthread_mutex_lock(&mutex_add_carrello);
+        
         // Controlla se il libro ha copie disponibili
         char query[512];
         snprintf(query, sizeof(query), "SELECT copie_totali - copie_in_prestito AS copie_disponibili FROM libri WHERE titolo = '%s'", bookTitle);
@@ -323,7 +322,6 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
             printf("Errore nella query di controllo delle copie disponibili: %s\n", PQerrorMessage(conn));
             PQclear(res);
             json_decref(json_body);
-            pthread_mutex_unlock(&mutex_add_carrello);
             return;
         }
 
@@ -345,7 +343,6 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                     "\r\n"
                     "{ \"success\": true }";
                 send(newSocket, response, strlen(response), 0);
-                pthread_mutex_unlock(&mutex_add_carrello);
             } else {
                 printf("Errore nell'inserimento nel carrello: %s\n", PQerrorMessage(conn));
 
@@ -357,7 +354,6 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                     "\r\n"
                     "{ \"success\": false, \"message\": \"Errore durante l'inserimento nel carrello\" }";
                 send(newSocket, response, strlen(response), 0);
-                pthread_mutex_unlock(&mutex_add_carrello);
             }
         } else {
             printf("Il libro non ha copie disponibili\n");
@@ -370,7 +366,6 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                 "\r\n"
                 "{ \"success\": false, \"message\": \"Il libro non ha copie disponibili\" }";
             send(newSocket, response, strlen(response), 0);
-            pthread_mutex_unlock(&mutex_add_carrello);
         }
 
         PQclear(res);
@@ -636,6 +631,8 @@ char** controlla_libri_gia_presi_in_prestito(int newSocket, char *buffer, PGconn
 
 void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
     fprintf(stderr, "Entrato in handle_crea_prestiti\n");
+      // Entrata nella sezione critica
+        pthread_mutex_lock(&mutex);
 
     char *body = strstr(buffer, "\r\n\r\n");
     if (body) {
@@ -646,6 +643,7 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
         json_t *json_body = json_loads(body, 0, &error);
         if (!json_body) {
             printf("Errore nel parsing del corpo JSON: %s\n", error.text);
+            pthread_mutex_unlock(&mutex);
             return;
         }
 
@@ -654,12 +652,12 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
         if (!email) {
             printf("Email mancante nel corpo JSON\n");
             json_decref(json_body);
+            pthread_mutex_unlock(&mutex);
             return;
         }
         fprintf(stderr, "Email recuperata : %s\n", email);
 
-         // Entrata nella sezione critica
-        pthread_mutex_lock(&mutex);
+       
 
         int num_books;
         char **books_without_copies = controlla_copie_disponibili(newSocket, buffer, conn, &num_books);
@@ -842,9 +840,9 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
             send(newSocket, response, strlen(response), 0);
             fprintf(stderr, "Mandato il JSON di buona riuscita");
              // Uscita dalla sezione critica
-            pthread_mutex_unlock(&mutex);
         }
         json_decref(json_body);
+        pthread_mutex_unlock(&mutex);
     }
 }
 
