@@ -12,6 +12,9 @@
 #include <jansson.h>
 #include <pthread.h>
 
+// Dichiarazione del mutex come variabile globale
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_add_carrello = PTHREAD_MUTEX_INITIALIZER;
 
 
 void handle_get_books(int newSocket, PGconn *conn, char *buffer) {
@@ -307,6 +310,9 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
         printf("Email ricevuta: %s\n", email);
         printf("Titolo del libro ricevuto: %s\n", bookTitle);
 
+
+         // Entrata nella sezione critica
+        pthread_mutex_lock(&mutex_add_carrello);
         // Controlla se il libro ha copie disponibili
         char query[512];
         snprintf(query, sizeof(query), "SELECT copie_totali - copie_in_prestito AS copie_disponibili FROM libri WHERE titolo = '%s'", bookTitle);
@@ -317,6 +323,7 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
             printf("Errore nella query di controllo delle copie disponibili: %s\n", PQerrorMessage(conn));
             PQclear(res);
             json_decref(json_body);
+            pthread_mutex_unlock(&mutex_add_carrello);
             return;
         }
 
@@ -338,6 +345,7 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                     "\r\n"
                     "{ \"success\": true }";
                 send(newSocket, response, strlen(response), 0);
+                pthread_mutex_unlock(&mutex_add_carrello);
             } else {
                 printf("Errore nell'inserimento nel carrello: %s\n", PQerrorMessage(conn));
 
@@ -349,6 +357,7 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                     "\r\n"
                     "{ \"success\": false, \"message\": \"Errore durante l'inserimento nel carrello\" }";
                 send(newSocket, response, strlen(response), 0);
+                pthread_mutex_unlock(&mutex_add_carrello);
             }
         } else {
             printf("Il libro non ha copie disponibili\n");
@@ -361,6 +370,7 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                 "\r\n"
                 "{ \"success\": false, \"message\": \"Il libro non ha copie disponibili\" }";
             send(newSocket, response, strlen(response), 0);
+            pthread_mutex_unlock(&mutex_add_carrello);
         }
 
         PQclear(res);
@@ -648,11 +658,17 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
         }
         fprintf(stderr, "Email recuperata : %s\n", email);
 
+         // Entrata nella sezione critica
+        pthread_mutex_lock(&mutex);
+
         int num_books;
         char **books_without_copies = controlla_copie_disponibili(newSocket, buffer, conn, &num_books);
 
         int num_books_already_borrowed_in_cart;
         char **books_already_borrowed_in_cart = controlla_libri_gia_presi_in_prestito(newSocket,buffer, conn, &num_books_already_borrowed_in_cart);
+
+
+        
 
         if (num_books > 0 || num_books_already_borrowed_in_cart>0) {
             // Costruisci la risposta HTTP
@@ -661,6 +677,7 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
             char *buffer = malloc(buffer_size);
             if (!buffer) {
                 fprintf(stderr, "Errore nell'allocazione del buffer\n");
+                pthread_mutex_unlock(&mutex);
                 return;
             }
 
@@ -745,6 +762,7 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
                 char *buffer = malloc(buffer_size);
                 if (!buffer) {
                     fprintf(stderr, "Errore nell'allocazione del buffer\n");
+                    pthread_mutex_unlock(&mutex);
                     return;
                 }
 
@@ -808,6 +826,7 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
             if (PQresultStatus(res) != PGRES_TUPLES_OK) {
                 fprintf(stderr, "Query failed: %s", PQerrorMessage(conn));
                 PQclear(res);
+                pthread_mutex_unlock(&mutex);
                 return;
             }
 
@@ -822,6 +841,8 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
             "{ \"success\": true }";
             send(newSocket, response, strlen(response), 0);
             fprintf(stderr, "Mandato il JSON di buona riuscita");
+             // Uscita dalla sezione critica
+            pthread_mutex_unlock(&mutex);
         }
         json_decref(json_body);
     }
