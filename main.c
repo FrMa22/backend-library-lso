@@ -26,6 +26,7 @@ void handle_options(int newSocket) {
     send(newSocket, response, strlen(response), 0);
 }
 
+
 void handle_login(int newSocket, char *buffer, PGconn *conn) {
     fprintf(stderr,"Entrato in handle_login\n");
     char *body = strstr(buffer, "\r\n\r\n");
@@ -201,6 +202,8 @@ typedef struct {
 } thread_data_t;
 
 void *handle_client(void *arg) {
+
+
     thread_data_t *data = (thread_data_t *)arg;
     int newSocket = data->socket;
 
@@ -283,7 +286,7 @@ void *handle_client(void *arg) {
         printf("ricevuta richiesta per rimuovi_notifica");
         rimuovi_notifica(newSocket, buffer, conn);
     }else if (strncmp(buffer, "POST /messaggio", 15) == 0) {  // Gestisce l'invio di un messaggio
-        printf("entrato in manda avviso");
+        printf("\n\nentrato in manda avviso\n");
         // Cerca l'inizio del corpo della richiesta
         char *body_start = strstr(buffer, "\r\n\r\n");
         if (body_start) {
@@ -302,7 +305,7 @@ void *handle_client(void *arg) {
             const char *scadenza = json_string_value(json_object_get(json_body, "scadenza"));
 
             // Stampa i valori estratti (opzionale, per debug)
-            printf("Titolo: %s\n", titolo);
+            printf("Titolo in post/messaggio: %s\n", titolo);
             printf("Email: %s\n", email);
             printf("Scadenza: %s\n", scadenza);
 
@@ -329,39 +332,7 @@ void *handle_client(void *arg) {
         get_limite_libri(newSocket, conn);
     }else if (strncmp(buffer, "PUT /limite_libri", 17) == 0) {  // Gestisce la richiesta di aggiornamento del limite
         update_limite_libri(newSocket, conn, buffer);
-    }else if (strncmp(buffer, "POST /messaggio", 15) == 0) {  // Gestisce l'invio di un messaggio
-     // Cerca l'inizio del corpo della richiesta
-    char *body_start = strstr(buffer, "\r\n\r\n");
-    if (body_start) {
-        body_start += 4; // Avanza oltre la sequenza "\r\n\r\n"
-        // Parsing del corpo della richiesta JSON
-        json_error_t error;
-        json_t *json_body = json_loads(body_start, 0, &error);
-        if (!json_body) {
-            printf("Errore nel parsing del corpo JSON: %s\n", error.text);
-            return;
-        }
-
-        // Estrai i valori dal JSON
-        const char *titolo = json_string_value(json_object_get(json_body, "titolo"));
-        const char *email = json_string_value(json_object_get(json_body, "email"));
-        const char *scadenza = json_string_value(json_object_get(json_body, "scadenza"));
-
-        // Stampa i valori estratti (opzionale, per debug)
-        printf("Titolo: %s\n", titolo);
-        printf("Email: %s\n", email);
-        printf("Scadenza: %s\n", scadenza);
-
-        // Invia il messaggio
-        invia_messaggio(newSocket, conn, titolo, email, scadenza);
-
-        // Libera la memoria allocata per il JSON
-        json_decref(json_body);
-    } else {
-        // Errore nel trovare il corpo della richiesta
-        printf("Errore nel trovare il corpo della richiesta\n");
-    }
-     }else if (strncmp(buffer, "GET /info", 9) == 0) {  // Gestisce la richiesta di recupero informazioni
+    }else if (strncmp(buffer, "GET /info", 9) == 0) {  // Gestisce la richiesta di recupero informazioni
                 // Estrae il titolo dalla richiesta GET
         char *titolo_start = strstr(buffer, "titolo=");
         if (titolo_start) {
@@ -395,7 +366,7 @@ void *handle_client(void *arg) {
 
 int main() {
     // Parametri di connessione al database
-    const char *DB_HOST = "lso.cn0yyy24sf56.eu-north-1.rds.amazonaws.com";
+    const char *DB_HOST = "database-progetto-lso.cdce2824inp7.eu-west-3.rds.amazonaws.com";
     const char *DB_PORT = "5432";
     const char *DB_NAME = "postgres";
     const char *DB_USER = "postgres";

@@ -267,7 +267,7 @@ void handle_get_info(int newSocket, PGconn *conn,const char *titolo) {
 }
 
 void invia_messaggio(int newSocket, PGconn *conn,const char *titolo,const char *email,const char *data_scadenza) {
-    printf("Entrato in invia_messaggio\n");
+    printf("\n\nEntrato in invia_messaggio\n");
     // Recupero informazioni  libro dal database e invio al client
 
     // Stampa i valori estratti (opzionale, per debug)
@@ -302,7 +302,7 @@ if (PQresultStatus(res) == PGRES_COMMAND_OK) {
         "Content-Type: application/json\r\n"
         "Access-Control-Allow-Origin: *\r\n"
         "\r\n"
-        "{ \"message\": \"Errore nell'inserimento della notifica\" }";
+        "{ \"message\": \"L'utente è stato gia avvisato\" }";
     printf("Errore creazione notifica per il client\n");
     send(newSocket, response, strlen(response), 0);
 }
