@@ -346,6 +346,10 @@ void *handle_client(void *arg) {
             while ((ptr = strstr(ptr, "%20"))) {
                 *ptr = ' ';
                 memmove(ptr + 1, ptr + 3, strlen(ptr + 3) + 1);
+                //la funzione memmove sposta un blocco di memoria all'interno della stringa 
+                // destinazione:ptr + 1 - questa è la posizione subito dopo lo spazio che abbiamo appena messo.
+                //origine:ptr + 3 - questa è la posizione subito dopo "20", ossia l'inizio del resto della stringa.
+                //Numero di byte da copiare: strlen(ptr + 3) + 1 lunghezza della parte rimanente della stringa, più uno per includere il terminatore nullo '\0'.
             }
             char titolo[256];
             strcpy(titolo, titolo_start);
