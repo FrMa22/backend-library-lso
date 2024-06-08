@@ -15,6 +15,8 @@
 
 #define PORT 8080
 
+pthread_mutex_t registrazione_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void handle_options(int newSocket) {
     const char *response =
         "HTTP/1.1 204 No Content\r\n"
@@ -113,6 +115,10 @@ void print_books_found(PGresult *res) {
 void handle_registration(int newSocket, char *buffer, PGconn *conn) {
     printf("Registrando nuovo utente\n");
 
+
+     // Bloccare il mutex prima di eseguire la registrazione
+    pthread_mutex_lock(&registrazione_mutex);
+
     char *body = strstr(buffer, "\r\n\r\n");
     if (body) {
         body += 4; // Salta i 4 caratteri "\r\n\r\n"
@@ -122,6 +128,7 @@ void handle_registration(int newSocket, char *buffer, PGconn *conn) {
         json_t *json_body_req = json_loads(body, 0, &error);
         if (!json_body_req) {
             printf("Errore nel parsing del corpo JSON: %s\n", error.text);
+            pthread_mutex_unlock(&registrazione_mutex); // Sbloccare il mutex in caso di errore
             return;
         }
 
@@ -131,6 +138,7 @@ void handle_registration(int newSocket, char *buffer, PGconn *conn) {
         if (!email || !password) {
             printf("Email o password mancanti nel corpo JSON\n");
             json_decref(json_body_req);
+            pthread_mutex_unlock(&registrazione_mutex); // Sbloccare il mutex in caso di errore
             return;
         }
         printf("email: %s e password: %s ricevute\n", email, password);
@@ -150,7 +158,7 @@ void handle_registration(int newSocket, char *buffer, PGconn *conn) {
             "\r\n"
             "{ \"success\": false, \"message\": \"L'email è già presente nel database\" }";
             send(newSocket, response, strlen(response), 0);
-
+            pthread_mutex_unlock(&registrazione_mutex); // Sbloccare il mutex in caso di errore
             return;
         }
         PQclear(check_res);
@@ -166,6 +174,7 @@ void handle_registration(int newSocket, char *buffer, PGconn *conn) {
             printf("Errore durante l'inserimento dell'utente nel database: %s\n", PQerrorMessage(conn));
             PQclear(res);
             json_decref(json_body_req);
+            pthread_mutex_unlock(&registrazione_mutex); // Sbloccare il mutex in caso di errore
             return;
         }
         PQclear(res);
@@ -184,6 +193,7 @@ void handle_registration(int newSocket, char *buffer, PGconn *conn) {
         // Libera la memoria del corpo JSON della richiesta
         json_decref(json_body_req);
     }
+    pthread_mutex_unlock(&registrazione_mutex); // Sbloccare il mutex dopo aver completato correttamente la registrazione
 }
 
 
@@ -370,13 +380,13 @@ void *handle_client(void *arg) {
 
 int main() {
     // Parametri di connessione al database
-    const char *DB_HOST = "database-progetto-lso.cdce2824inp7.eu-west-3.rds.amazonaws.com";
+    const char *DB_HOST = "lso.cn0yyy24sf56.eu-north-1.rds.amazonaws.com";
     const char *DB_PORT = "5432";
     const char *DB_NAME = "postgres";
     const char *DB_USER = "postgres";
     const char *DB_PASS = "Progetto2324";
 
-    // Creazione del socket del server
+    // Creazione del socket del server e del socket utilizzato per le connessioni tra server e client
     int serverSocket, newSocket;
     struct sockaddr_in serverAddr, clientAddr;
     socklen_t clientAddrLen = sizeof(clientAddr);
@@ -429,7 +439,7 @@ int main() {
             continue;
         }
 
-        pthread_detach(client_thread);
+        pthread_detach(client_thread);//istruzione importante per evitare grossi rallentamenti al server C
         
     }
 
