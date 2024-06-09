@@ -25,7 +25,10 @@ void handle_options(int newSocket) {
         "Access-Control-Allow-Headers: Content-Type\r\n"
         "Access-Control-Max-Age: 86400\r\n"
         "\r\n";
-    send(newSocket, response, strlen(response), 0);
+    ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+     if (bytes_sent == -1) {
+        perror("send failed\n");
+    } 
 }
 
 
@@ -80,7 +83,10 @@ void handle_login(int newSocket, char *buffer, PGconn *conn) {
             } else {
                 strcat(response, "utente");
             }
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+            if (bytes_sent == -1) {
+                perror("send failed\n");
+            } 
         } else {
             printf("Utente non trovato\n");
 
@@ -91,9 +97,11 @@ void handle_login(int newSocket, char *buffer, PGconn *conn) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                 "Credenziali non valide";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+            if (bytes_sent == -1) {
+                perror("send failed\n");
+            }  
         }
-
         PQclear(res);
         json_decref(json_body);
     }
@@ -157,7 +165,10 @@ void handle_registration(int newSocket, char *buffer, PGconn *conn) {
             "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
             "{ \"success\": false, \"message\": \"L'email è già presente nel database\" }";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+            if (bytes_sent == -1) {
+                perror("send failed\n");
+            }
             pthread_mutex_unlock(&registrazione_mutex); // Sbloccare il mutex in caso di errore
             return;
         }
@@ -186,10 +197,12 @@ void handle_registration(int newSocket, char *buffer, PGconn *conn) {
         "Access-Control-Allow-Origin: *\r\n"
         "\r\n"
         "{ \"success\": true }";
-        send(newSocket, response, strlen(response), 0);
-
-        printf("Registrazione avvenuta con successo per l'utente con email: %s\n", email);
-
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+            if (bytes_sent == -1) {
+                perror("send failed\n");
+            } else {
+            printf("Registrazione avvenuta con successo per l'utente con email: %s\n", email);
+            }  
         // Libera la memoria del corpo JSON della richiesta
         json_decref(json_body_req);
     }
@@ -235,7 +248,9 @@ void *handle_client(void *arg) {
 
     if (PQstatus(conn) != CONNECTION_OK) {
         fprintf(stderr, "Connessione al database fallita: %s", PQerrorMessage(conn));
-        close(newSocket);
+        if (close(newSocket) == -1) {
+            perror("Errore durante la chiusura del socket");
+        }
         free(data);
         return NULL;
     }
@@ -245,7 +260,9 @@ void *handle_client(void *arg) {
     int valread = recv(newSocket, buffer, sizeof(buffer) - 1, 0);
     if (valread <= 0) {
         perror("Receive failed or connection closed\n");
-        close(newSocket);
+        if (close(newSocket) == -1) {
+            perror("Errore durante la chiusura del socket");
+        }
         PQfinish(conn);
         free(data);
         return NULL;
@@ -371,7 +388,9 @@ void *handle_client(void *arg) {
         
         
 
-    close(newSocket);
+    if (close(newSocket) == -1) {
+            perror("Errore durante la chiusura del socket");
+        }
     PQfinish(conn);
     free(data);
     return NULL;
@@ -402,13 +421,17 @@ int main() {
 
     if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
         perror("Bind failed\n");
-        close(serverSocket);
+       if (close(serverSocket) == -1) {
+            perror("Errore durante la chiusura del socket");
+        }
         return 1;
     }
 
     if (listen(serverSocket, 3) < 0) {
         perror("Listen failed\n");
-        close(serverSocket);
+       if (close(serverSocket) == -1) {
+            perror("Errore durante la chiusura del socket");
+        }
         return 1;
     }
 
@@ -421,7 +444,9 @@ int main() {
         thread_data_t *data = malloc(sizeof(thread_data_t));
         if (!data) {
             perror("Failed to allocate memory\n");
-            close(newSocket);
+            if (close(newSocket) == -1) {
+            perror("Errore durante la chiusura del socket");
+        }
             continue;
         }
         data->socket = newSocket;
@@ -434,16 +459,22 @@ int main() {
         pthread_t client_thread;
         if (pthread_create(&client_thread, NULL, handle_client, (void *)data) != 0) {
             perror("Failed to create thread\n");
-            close(newSocket);
+            if (close(newSocket) == -1) {
+            perror("Errore durante la chiusura del socket");
+        }
             free(data);
             continue;
         }
 
-        pthread_detach(client_thread);//istruzione importante per evitare grossi rallentamenti al server C
-        
+       int r=pthread_detach(client_thread);//istruzione importante per evitare grossi rallentamenti al server C
+        if(r!=0){
+            perror("Errore detach thread\n");
+        }
     }
 
-    close(serverSocket);
+    if (close(serverSocket) == -1) {
+            perror("Errore durante la chiusura del socket");
+        }
 
     return 0;
 }

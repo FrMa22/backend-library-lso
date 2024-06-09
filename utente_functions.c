@@ -71,7 +71,10 @@ void handle_get_books(int newSocket, PGconn *conn, char *buffer) {
                 }
             }
             strcat(response, "] }");
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
         }
         PQclear(res);
         json_decref(json_body);
@@ -161,7 +164,10 @@ void handle_get_carrello(int newSocket, char *buffer, PGconn *conn) {
                 }
             }
             strcat(response, "] }");
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
         } else {
             const char *response = 
                 "HTTP/1.1 204 \r\n"
@@ -169,7 +175,10 @@ void handle_get_carrello(int newSocket, char *buffer, PGconn *conn) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                     "{ \"message\": \"Nessun libro trovato nel carrello\" }";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
         }
 
         PQclear(res);
@@ -232,7 +241,10 @@ void handle_search_books(int newSocket, char *buffer, PGconn *conn) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                 "Nome o categoria devono essere specificati";
-            send(newSocket, response, strlen(response), 0);
+           ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
             json_decref(json_body);
             return;
         }
@@ -266,7 +278,10 @@ void handle_search_books(int newSocket, char *buffer, PGconn *conn) {
                 }
             }
             strcat(response, "] }");
-            send(newSocket, response, strlen(response), 0);
+         ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
         } else {
             const char *response = 
                 "HTTP/1.1 404 Not Found\r\n"
@@ -274,7 +289,10 @@ void handle_search_books(int newSocket, char *buffer, PGconn *conn) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                 "Nessun libro trovato";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
         }
 
         PQclear(res);
@@ -342,7 +360,10 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                     "Access-Control-Allow-Origin: *\r\n"
                     "\r\n"
                     "{ \"success\": true }";
-                send(newSocket, response, strlen(response), 0);
+                ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+                 if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
             } else {
                 printf("Errore nell'inserimento nel carrello: %s\n", PQerrorMessage(conn));
 
@@ -353,7 +374,10 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                     "Access-Control-Allow-Origin: *\r\n"
                     "\r\n"
                     "{ \"success\": false, \"message\": \"Errore durante l'inserimento nel carrello\" }";
-                send(newSocket, response, strlen(response), 0);
+                ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+                 if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
             }
         } else {
             printf("Il libro non ha copie disponibili\n");
@@ -365,7 +389,10 @@ void handle_add_to_cart(int newSocket, char *buffer, PGconn *conn) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                 "{ \"success\": false, \"message\": \"Il libro non ha copie disponibili\" }";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+            perror("send failed\n");
+            }
         }
 
         PQclear(res);
@@ -420,7 +447,10 @@ void handle_remove_temporarily_from_cart(int newSocket, char *buffer, PGconn *co
             "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
             "Libro rimosso temporaneamente dal carrello";
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
 
         PQclear(res);
         json_decref(json_body);
@@ -473,7 +503,10 @@ void handle_restore_to_cart(int newSocket, char *buffer, PGconn *conn) {
             "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
             "Libro ripristinato nel carrello";
-        send(newSocket, response, strlen(response), 0);
+       ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
 
         PQclear(res);
         json_decref(json_body);
@@ -706,7 +739,10 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
                 strncat(buffer, "] }", buffer_size - strlen(buffer) - 1);
 
                 // Invia la risposta
-                send(newSocket, buffer, strlen(buffer), 0);
+                ssize_t bytes_sent=send(newSocket, buffer, strlen(buffer), 0);
+                 if (bytes_sent == -1) {
+            perror("send failed\n");
+                }
 
                 fprintf(stderr, "Mandato il JSON di cattiva riuscita\n");
 
@@ -743,7 +779,10 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
                 strncat(buffer, "] }", buffer_size - strlen(buffer) - 1);
 
                 // Invia la risposta
-                send(newSocket, buffer, strlen(buffer), 0);
+                ssize_t bytes_sent=send(newSocket, buffer, strlen(buffer), 0);
+                 if (bytes_sent == -1) {
+                 perror("send failed\n");
+                }
 
                 fprintf(stderr, "Mandato il JSON di cattiva riuscita\n");
 
@@ -799,7 +838,10 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
                 strncat(buffer, "] }", buffer_size - strlen(buffer) - 1);
 
                 // Invia la risposta
-                send(newSocket, buffer, strlen(buffer), 0);
+                ssize_t bytes_sent=send(newSocket, buffer, strlen(buffer), 0);
+                 if (bytes_sent == -1) {
+                perror("send failed\n");
+                }
 
                 fprintf(stderr, "Mandato il JSON dei libri con copie zero o già in prestito nel carrello\n");
 
@@ -837,7 +879,10 @@ void handle_crea_prestiti(int newSocket, char *buffer, PGconn *conn) {
             "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
             "{ \"success\": true }";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+            perror("send failed\n");
+            }
             fprintf(stderr, "Mandato il JSON di buona riuscita");
              // Uscita dalla sezione critica
         }
@@ -906,7 +951,10 @@ void get_limite_libri_per_utente(int newSocket, char *buffer, PGconn *conn) {
                 "%s", response_json_body);
 
         // Invio della risposta
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
 
         // Libera la memoria del corpo JSON della richiesta
         json_decref(json_body_req);
@@ -974,7 +1022,10 @@ void handle_get_prestiti_per_utente(int newSocket, char *buffer, PGconn *conn) {
                 }
             }
             strcat(response, "] }");
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+            perror("send failed\n");
+            }
         } else {
             const char *response =
                 "HTTP/1.1 204 No Content\r\n"
@@ -982,7 +1033,10 @@ void handle_get_prestiti_per_utente(int newSocket, char *buffer, PGconn *conn) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                 "{ \"message\": \"Nessun libro trovato nei prestiti\" }";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
         }
 
         PQclear(res);
@@ -1041,7 +1095,10 @@ void restituisci_libro(int newSocket, char *buffer, PGconn *conn) {
             "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
             "{ \"message\": \"Libro restituito con successo\" }";
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
     }
 }
 
@@ -1098,7 +1155,10 @@ void rimuovi_definitivamente_carrello(int newSocket, char *buffer, PGconn *conn)
             "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
             "{ \"message\": \"Libro rimosso dal carrello con successo\" }";
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
     }
 }
 
@@ -1221,7 +1281,10 @@ void rimuovi_notifica(int newSocket, char *buffer, PGconn *conn) {
         "\r\n"
         "{ \"message\": \"Notifica rimossa correttamente\" }";
         printf("Notifica inviata al client\n");
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
 
 
         PQclear(res);

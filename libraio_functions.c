@@ -25,7 +25,7 @@ bool string_to_bool(const char *str) {
 void handle_get_libri(int newSocket, PGconn *conn) {
     printf("Entrato in handle_get_libri\n");
     // Recupero dei  libri dal database e invio al client
-    PGresult *res = PQexec(conn, "SELECT titolo, autore, copie_totali,copie_in_prestito FROM libri ORDER BY titolo");
+    PGresult *res = PQexec(conn, "SELECT titolo, autore, libri.copie_totali - COALESCE(libri.copie_in_prestito, 0) AS copie_disponibili,copie_in_prestito FROM libri ORDER BY titolo");
  
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
         fprintf(stderr, "Query failed: %s", PQerrorMessage(conn));
@@ -54,7 +54,12 @@ void handle_get_libri(int newSocket, PGconn *conn) {
  
         strcat(response, "] }");
  
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+        perror("send failed\n");
+        } 
+
+
     } else {
         const char *response =
             "HTTP/1.1 404 Not Found\r\n"
@@ -62,7 +67,10 @@ void handle_get_libri(int newSocket, PGconn *conn) {
             "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
             "Nessun libro trovato";
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        } 
     }
  
     PQclear(res);
@@ -101,14 +109,20 @@ void handle_get_scaduti(int newSocket, PGconn *conn) {
         strcat(response, "] }");
  
         printf("prestiti scaduti prelevati /n");
-        send(newSocket, response, strlen(response), 0);
+       ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        } 
     } else {
         const char *response =
             "HTTP/1.1 202 No Content\r\n"
             "Content-Type: text/plain\r\n"
             "Access-Control-Allow-Origin: *\r\n";
             printf("nessun prestito scaduto trovato\n");
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
     }
  
     PQclear(res);
@@ -141,7 +155,10 @@ void get_limite_libri(int newSocket, PGconn *conn) {
  
     // Invio della risposta
     printf("inviato limite");
-    send(newSocket, response, strlen(response),0);
+    ssize_t bytes_sent=send(newSocket, response, strlen(response),0);
+     if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
 }
  
 void update_limite_libri(int newSocket, PGconn *conn, char *buffer) {
@@ -164,7 +181,10 @@ void update_limite_libri(int newSocket, PGconn *conn, char *buffer) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                 "{ \"error\": \"Valore limite non valido\" }";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+            perror("send failed\n");
+            }
             return;
         }
  
@@ -185,7 +205,10 @@ void update_limite_libri(int newSocket, PGconn *conn, char *buffer) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                 "{ \"message\": \"Limite aggiornato con successo\" }";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+            perror("send failed\n");
+            }
         } else {
             printf("Errore nell'aggiornamento del limite: %s\n", PQerrorMessage(conn));
  
@@ -196,7 +219,10 @@ void update_limite_libri(int newSocket, PGconn *conn, char *buffer) {
                 "Access-Control-Allow-Origin: *\r\n"
                 "\r\n"
                 "{ \"error\": \"Errore nell'aggiornamento del limite\" }";
-            send(newSocket, response, strlen(response), 0);
+            ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+             if (bytes_sent == -1) {
+            perror("send failed\n");
+            }
         }
  
         PQclear(res);
@@ -210,7 +236,10 @@ void update_limite_libri(int newSocket, PGconn *conn, char *buffer) {
             "Access-Control-Allow-Origin: *\r\n"
             "\r\n"
             "{ \"error\": \"Parametro limite mancante\" }";
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
     }
 }
  
@@ -251,7 +280,10 @@ void handle_get_info(int newSocket, PGconn *conn,const char *titolo) {
  
         strcat(response, "] }");
          printf("prestiti trovati\n");
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
     } else {
         const char *response =
             "HTTP/1.1 404 Not Found\r\n"
@@ -260,7 +292,10 @@ void handle_get_info(int newSocket, PGconn *conn,const char *titolo) {
             "\r\n"
             "Nessun prestito trovato";
             printf("nessun prestito trovato\n");
-        send(newSocket, response, strlen(response), 0);
+        ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+         if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
     }
  
     PQclear(res);
@@ -294,7 +329,10 @@ if (PQresultStatus(res) == PGRES_COMMAND_OK) {
         "\r\n"
         "{ \"message\": \"Notifica inserita correttamente\" }";
         printf("Notifica inviata al client\n");
-    send(newSocket, response, strlen(response), 0);
+    ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+     if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
 } else {
     // Errore nell'inserimento
     const char *response =
@@ -304,7 +342,10 @@ if (PQresultStatus(res) == PGRES_COMMAND_OK) {
         "\r\n"
         "{ \"message\": \"L'utente è stato gia avvisato\" }";
     printf("Errore creazione notifica per il client\n");
-    send(newSocket, response, strlen(response), 0);
+    ssize_t bytes_sent=send(newSocket, response, strlen(response), 0);
+     if (bytes_sent == -1) {
+        perror("send failed\n");
+        }
 }
 
 PQclear(res);
